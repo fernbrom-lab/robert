@@ -7,15 +7,14 @@ import base64
 
 today_date = datetime.now().strftime("%Y-%m-%d")
 today_str = datetime.now().strftime("%Y%m%d")
-print(f"🚀 開始執行【加密防禦版】標案與新聞過濾... 今日日期：{today_date}")
+print(f"🚀 開始執行【雙欄戰情最終修復版】標案與新聞過濾... 今日日期：{today_date}")
 
 # 1. 漏斗篩選規則
 MAX_BUDGET = 36000000  # 丙級營造上限 3600 萬
 INCLUDE_KEYWORDS = ["景觀", "植生", "綠牆", "綠美化", "園藝", "假設工程", "圍籬", "鷹架", "新建", "公廁"]
 EXCLUDE_KEYWORDS = ["主體建築", "下水道", "橋樑", "隧道", "捷運", "高鐵", "都市更新"]
 
-# 2. 【軍規級防篡改】將網址完全加密成亂碼，強迫微軟雲端執行時才在記憶體解密還原
-# 密碼還原後為：https://ronny.tw
+# 2. 防改寫密碼隔離連線
 b64_tender = "aHR0cHM6Ly9wY2MuZzB2LnJvbm55LnR3L2FwaS9saXN0YnlkYXRlP2RhdGU9"
 api_url = base64.b64decode(b64_tender).decode('utf-8') + today_str
 
@@ -23,13 +22,9 @@ def fetch_construction_news():
     """抓取並篩選台灣最新的營造與景觀綠美化即時新聞"""
     news_list = []
     try:
-        # 密碼還原後為：https://google.com
         b64_news_base = "aHR0cHM6Ly9uZXdzLmdvb2dsZS5jb20vcnNzL3NlYXJjaD9xPQ=="
-        # 密碼還原後為：&hl=zh-TW&gl=TW&ceid=TW:zh-Hant
         b64_news_tail = "Jmhscj16aC1UVyZnbD1UVyZjZWlkPVRXOnpoLUhhbnQ="
-        
         news_query = "(營造業 OR 景觀工程 OR 綠美化 OR 假設工程)"
-        
         url_base = base64.b64decode(b64_news_base).decode('utf-8')
         url_tail = base64.b64decode(b64_news_tail).decode('utf-8')
         rss_url = f"{url_base}{news_query}{url_tail}"
@@ -46,11 +41,7 @@ def fetch_construction_news():
                 if any(x in title for x in ["炒房", "房貸", "房價"]):
                     continue
                     
-                news_list.append({
-                    "title": title,
-                    "url": link,
-                    "source": source
-                })
+                news_list.append({"title": title, "url": link, "source": source})
     except Exception as e:
         print(f"⚠️ 新聞模組安全防禦提示: {e}")
     return news_list
@@ -82,17 +73,15 @@ def save_html(title, content, filename):
         f.write(html_code)
 
 try:
-    print(f"📡 📡 【安全記憶體隔離連線】解密成功！請求網址為: {api_url}")
+    print(f"📡 正在請求標案 API 網址: {api_url}")
     headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
     response = requests.get(api_url, headers=headers, timeout=25)
     
-    # 同步抓取右側新聞
     today_news = fetch_construction_news()
-    
     left_column = ""
     right_column = ""
     
-    # 組裝右側：產業新聞欄位
+    # 組裝右側：新聞
     right_column += "<h3 class='text-success mb-3'>📰 營造業與景觀即時新聞</h3>"
     if not today_news:
         right_column += "<p class='text-muted'>今日暫無重大法規或工程產業新聞變動。</p>"
@@ -110,14 +99,14 @@ try:
             """
         right_column += "</div>"
 
-    # 403 自癒提示機制 (搭配正確官方手動連結)
+    # 【官方永久網址修復】若遇到 403 阻擋，手動導向按鈕直接指向政府採購網官方唯一首頁，100% 絕對暢通
     if response.status_code == 403:
-        print("⚠️ 偵測到 403 阻擋，自動切換至雙欄自癒模式...")
+        print("⚠️ 偵測到 403 阻擋，自動啟動備用網頁生成機制...")
         os.makedirs("dist", exist_ok=True)
         
         left_column += "<h3 class='text-primary mb-3'>📅 適合公司之標案日報</h3>"
         left_column += "<div class='alert alert-warning shadow-sm'>⚠️ <b>系統提示：</b>今日官方 API 暫時限制海外機房流量 (HTTP 403)。系統已安排自動重試。</div>"
-        left_column += f"<p class='mt-3'><a href='https://pcc.gov.tw{today_str}' target='_blank' class='btn btn-warning w-100 py-2 fw-bold shadow-sm'>直接開啟政府電子採購網：當日公告總表</a></p>"
+        left_column += f"<p class='mt-3'><a href='https://web.pcc.gov.tw' target='_blank' class='btn btn-warning w-100 py-2 fw-bold shadow-sm'>直接開啟：政府電子採購網入口首頁（免帳號直接找標案）</a></p>"
         
         full_content = f"""
         <div class='row g-4'>
@@ -133,7 +122,7 @@ try:
         print(f"❌ 標案系統未預期中斷，狀態碼: {response.status_code}")
         exit()
         
-    # 正常模式解析標案
+    # 正常模式
     data = response.json()
     tenders = data.get("records", [])
     today_tenders_formatted = []
@@ -147,6 +136,7 @@ try:
         if any(ex in title for ex in EXCLUDE_KEYWORDS): continue
         if any(inc in title for inc in INCLUDE_KEYWORDS):
             job_number = t.get("job_number", "")
+            # 三代標準個別標案超連結
             pcc_url = f"https://pcc.gov.tw{job_number}"
             today_tenders_formatted.append({
                 "title": title,
@@ -155,7 +145,7 @@ try:
                 "url": pcc_url
             })
 
-    # 組裝左側：標案表格
+    # 組裝左側標案
     current_time_str = datetime.now().strftime("%H:%M:%S")
     left_column += f"<h2>📅 {today_date} 推薦投標標案</h2>"
     left_column += f"<p class='text-muted'>更新時間：{current_time_str} (金額限額 3,600 萬內)</p><hr>"
@@ -169,7 +159,7 @@ try:
             left_column += f"<tr><td><b>{t['title']}</b></td><td class='text-danger fw-bold'>${t['budget']:,}</td><td>{t['unit']}</td><td><a href='{t['url']}' target='_blank' class='btn btn-primary btn-sm rounded-pill px-3'>查看公告</a></td></tr>"
         left_column += "</tbody></table></div>"
 
-    # 雙欄合併渲染成 HTML
+    # 合併
     os.makedirs("dist", exist_ok=True)
     full_content = f"""
     <div class='row g-4'>
