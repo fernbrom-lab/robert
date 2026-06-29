@@ -1,4 +1,8 @@
-name: 查詢 Twinkle Hub 標案
+name: 查詢 Twinkle Hub 標案- name: 安裝依賴 
+run: |
+    pip install requests beautifulsoup4
+   
+
 on:
   schedule:
     - cron: '0 9 * * *'  # 每天上午 9 點
