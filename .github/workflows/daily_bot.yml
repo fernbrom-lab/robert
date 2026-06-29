@@ -31,7 +31,7 @@ jobs:
       env:
         TARGET_API_URL: "https://ronny.tw"
       run: |
-        python main_crawler.py
+        python main.py
 
     - name: 5. 終極防衝突強制將網頁推回專案
       run: |
