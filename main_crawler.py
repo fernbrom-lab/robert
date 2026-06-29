@@ -54,7 +54,6 @@ try:
     response = requests.get(api_url, headers=headers, timeout=25)
     
     # 【403 自癒避雷針】若機房遭到阻擋，自動導向友善提示頁面
-    # 【100% 正確官方網址修復】完全導向政府電子採購網真正的當日摘要查詢網頁
     if response.status_code == 403:
         print("⚠️ 偵測到 403 阻擋，自動啟動備用網頁生成機制...")
         os.makedirs("dist", exist_ok=True)
@@ -75,12 +74,42 @@ try:
 
     for t in tenders:
         title = t.get("title", "")
-        try: budget = int(t.get("price", 0))
-        except: budget = 0
+        try: 
+            budget = int(t.get("price", 0))
+        except: 
+            budget = 0
 
         if budget > MAX_BUDGET: continue
         if any(ex in title for ex in EXCLUDE_KEYWORDS): continue
         
         if any(inc in title for inc in INCLUDE_KEYWORDS):
             job_number = t.get("job_number", "")
-            pcc_url = f"
+            pcc_url = f"https://pcc.gov.tw{job_number}"
+
+            today_tenders_formatted.append({
+                "title": title,
+                "budget": budget,
+                "unit": t.get("unit_name", "未知機關"),
+                "url": pcc_url
+            })
+
+    os.makedirs("dist", exist_ok=True)
+
+    current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    table_content = f"<h2>📅 {today_date} 適合公司投標之標案日報</h2>"
+    table_content += f"<p class='text-muted'>系統最後更新時間：{current_time_str}</p><hr>"
+    
+    if not today_tenders_formatted:
+        table_content += "<p class='text-muted'>今日目前無符合條件的新標案。</p>"
+    else:
+        table_content += "<div class='table-responsive'><table class='table table-striped table-hover'><thead>"
+        table_content += "<tr><th>標案名稱</th><th>預算金額</th><th>招標機關</th><th>官方連結</th></tr></thead><tbody>"
+        for t in today_tenders_formatted:
+            table_content += f"<tr><td><b>{t['title']}</b></td><td class='text-danger'>${t['budget']:,}</td><td>{t['unit']}</td><td><a href='{t['url']}' target='_blank' class='btn btn-primary btn-sm'>查看公告</a></td></tr>"
+        table_content += "</tbody></table></div>"
+
+    save_html(f"{today_date} 標案日報", table_content, "dist/index.html")
+    print("🎉 網頁成功生成完畢！")
+
+except Exception as e:
+    print(f"❌ 錯誤: {e}")
