@@ -103,8 +103,14 @@ try:
     save_html(f"{today_date} 標案日報", table_content, "dist/index.html")
     save_html(f"{today_date} 標案日報", table_content, f"dist/daily_reports/{today_date}.html")
 
-    # 8. 生成【歷史存檔總覽庫 (history.html)】
-    history_content = "<h2>📚 歷史日報存檔庫</h2><p class='text-muted'>點選日期即可查看當天篩選出的所有案源：</p><hr><div class='list-group'>"
+       # 8. 生成【歷史存檔總覽庫 (history.html)】
+    # 加入最後更新時間，確保 Git 每次執行一定偵測得到檔案變動，徹底解決 GitHub Actions 報錯問題
+    current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    history_content = "<h2>📚 歷史日報存檔庫</h2>"
+    history_content += f"<p class='text-muted'>點選日期即可查看當天篩選出的所有案源（系統最後更新時間：{current_time_str}）：</p><hr>"
+    history_content += "<div class='list-group'>"
+    
     for date in sorted(history_db.keys(), reverse=True):
         count = len(history_db[date])
         history_content += f"<a href='/daily_reports/{date}.html' class='list-group-item list-group-item-action d-flex justify-content-between align-items-center'>"
@@ -112,7 +118,4 @@ try:
     history_content += "</div>"
     
     save_html("歷史標案日報存檔庫", history_content, "dist/history.html")
-    print("🎉 網頁生成完畢！")
-
-except Exception as e:
-    print(f"❌ 錯誤: {e}")
+    print("🎉 網頁與歷史存檔成功生成完畢！")
