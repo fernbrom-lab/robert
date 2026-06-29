@@ -1,0 +1,38 @@
+name: 查詢 Twinkle Hub 標案
+
+on:
+  schedule:
+    # 每天上午 9 點執行
+    - cron: '0 9 * * *'
+  workflow_dispatch:  # 允許手動觸發
+
+jobs:
+  query-tenders:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 檢出程式碼
+      uses: actions/checkout@v4
+    
+    - name: 設定 Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: 安裝依賴
+      run: |
+        pip install requests
+    
+    - name: 執行標案查詢
+      env:
+        TWINKLE_API_KEY: ${{ secrets.TWINKLE_API_KEY }}
+      run: |
+        python twinkle_tender.py
+    
+    - name: 儲存查詢結果
+      uses: actions/upload-artifact@v4
+      with:
+        name: tender-results
+        path: |
+          tender_results.json
+          *.txt
