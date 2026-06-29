@@ -1,350 +1,292 @@
 import os
 import json
+import re
 import requests
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
-class TwinkleHubClient:
-    """Twinkle Hub MCP 客戶端（加入除錯功能）"""
+def fetch_tenders_from_gov_data(keyword: str = "景觀", max_budget: int = 36000000, limit: int = 50) -> List[Dict]:
+    """
+    從政府開放資料平台抓取標案資料
     
-    def __init__(self, api_key: str, debug: bool = True):
-        self.api_key = api_key
-        self.base_url = "https://api.twinkleai.tw/mcp/"
-        self.session_id = None
-        self.request_id = 0
-        self.debug = debug  # 加入除錯模式
+    使用資料集：公共工程標案（資料集 ID: 16834）
+    來源：https://data.gov.tw/dataset/16834
+    """
+    tenders = []
     
-    def _log(self, message: str, level: str = "INFO"):
-        """除錯日誌"""
-        if self.debug:
-            print(f"[{level}] {message}")
+    # 政府開放資料平台 API
+    dataset_id = "16834"  # 公共工程標案
+    url = f"https://data.gov.tw/api/v1/rest/dataset/{dataset_id}"
     
-    def _get_next_id(self) -> int:
-        self.request_id += 1
-        return self.request_id
-    
-    def _parse_sse_response(self, text: str) -> Optional[Dict]:
-        """解析 SSE 格式的回應"""
-        lines = text.strip().split('\n')
-        for line in reversed(lines):
-            if line.startswith('data: '):
-                data_str = line[6:]
-                if data_str == '[DONE]':
-                    continue
-                try:
-                    return json.loads(data_str)
-                except:
-                    continue
-        return None
-    
-    def initialize(self) -> bool:
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Accept": "application/json, text/event-stream",
-            "Content-Type": "application/json"
-        }
+    try:
+        print(f"📡 從政府開放資料平台查詢標案...")
+        print(f"   關鍵字：{keyword}")
+        print(f"   預算上限：${max_budget:,}")
         
-        payload = {
-            "jsonrpc": "2.0",
-            "id": self._get_next_id(),
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-03-26",
-                "capabilities": {},
-                "clientInfo": {
-                    "name": "twinkle-tender-client",
-                    "version": "1.0.0"
-                }
-            }
-        }
+        response = requests.get(url, timeout=15)
         
-        try:
-            print("🔑 正在初始化 Twinkle Hub 連線...")
-            response = requests.post(self.base_url, json=payload, headers=headers, timeout=30)
+        if response.status_code == 200:
+            data = response.json()
             
-            if response.status_code == 200:
-                self.session_id = response.headers.get('mcp-session-id')
-                if self.session_id:
-                    print(f"✅ 初始化成功，Session ID: {self.session_id[:20]}...")
-                    return True
-                else:
-                    print("⚠️ 初始化成功但未取得 Session ID")
-                    return False
-            else:
-                print(f"❌ 初始化失敗：{response.status_code}")
-                print(f"   回應：{response.text[:200]}")
-                return False
-                
-        except Exception as e:
-            print(f"❌ 初始化發生錯誤：{e}")
-            return False
-    
-    def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Optional[Dict]:
-        if not self.session_id:
-            print("❌ 尚未初始化，請先呼叫 initialize()")
-            return None
-        
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Accept": "application/json, text/event-stream",
-            "Content-Type": "application/json",
-            "mcp-session-id": self.session_id
-        }
-        
-        payload = {
-            "jsonrpc": "2.0",
-            "id": self._get_next_id(),
-            "method": "tools/call",
-            "params": {
-                "name": tool_name,
-                "arguments": arguments
-            }
-        }
-        
-        try:
-            self._log(f"呼叫工具：{tool_name}，參數：{json.dumps(arguments, ensure_ascii=False)}")
-            response = requests.post(self.base_url, json=payload, headers=headers, timeout=30)
+            # 解析回應
+            records = []
+            if 'result' in data and 'records' in data['result']:
+                records = data['result']['records']
+            elif 'records' in data:
+                records = data['records']
             
-            if response.status_code == 200:
-                self._log(f"回應狀態碼：200")
-                self._log(f"原始回應：{response.text[:500]}")
+            print(f"   📊 取得 {len(records)} 筆原始資料")
+            
+            # 定義過濾關鍵字
+            include_keywords = ["景觀", "植生", "綠牆", "綠美化", "園藝", "圍籬", "鷹架", "安全圍籬", "新建", "公廁"]
+            
+            for record in records[:100]:  # 限制處理筆數
+                # 嘗試不同的欄位名稱
+                title = (
+                    record.get('標案名稱') or 
+                    record.get('title') or 
+                    record.get('案名') or 
+                    record.get('標案名稱（案號）') or 
+                    ''
+                )
                 
-                result = self._parse_sse_response(response.text)
-                if result:
-                    self._log(f"解析後結果：{json.dumps(result, ensure_ascii=False)[:500]}")
-                    return result
-                else:
-                    print("⚠️ 無法解析 SSE 回應")
-                    return None
-            else:
-                print(f"❌ 工具呼叫失敗：{response.status_code}")
-                print(f"   回應：{response.text[:200]}")
-                return None
+                budget_str = (
+                    record.get('預算金額') or 
+                    record.get('budget') or 
+                    record.get('預算金額（元）') or 
+                    '0'
+                )
                 
-        except Exception as e:
-            print(f"❌ 工具呼叫發生錯誤：{e}")
-            return None
-    
-    def list_tools(self) -> Optional[List[str]]:
-        """列出所有可用的工具"""
-        result = self.call_tool("tools/list", {})
-        if result and 'result' in result:
-            tools = result['result'].get('tools', [])
-            return [t.get('name') for t in tools]
-        return None
-    
-    def list_domains(self) -> Optional[List[Dict]]:
-        """列出所有資料領域"""
-        print("📡 嘗試取得所有資料領域...")
-        result = self.call_tool("opendata-list_domains", {})
-        
-        if result:
-            print(f"✅ list_domains 回應：{json.dumps(result, ensure_ascii=False)[:500]}")
-        
-        if result and 'result' in result:
-            content = result['result'].get('content', [])
-            if content and len(content) > 0:
-                try:
-                    data = json.loads(content[0]['text'])
-                    print(f"✅ 取得 {len(data)} 個資料領域")
-                    return data
-                except Exception as e:
-                    print(f"⚠️ 解析 domains 失敗：{e}")
-                    print(f"   原始內容：{content[0]['text'][:200]}")
-        return None
-    
-    def search_datasets(self, query: str, domain: str = None, limit: int = 10) -> Optional[List[Dict]]:
-        """搜尋資料集（加入詳細除錯）"""
-        arguments = {"query": query, "limit": limit}
-        if domain:
-            arguments["domain"] = domain
-        
-        print(f"📡 搜尋資料集：query='{query}', domain='{domain}', limit={limit}")
-        result = self.call_tool("opendata-search_datasets", arguments)
-        
-        # 詳細印出原始回應
-        if result:
-            print(f"✅ search_datasets 原始回應：{json.dumps(result, ensure_ascii=False)[:800]}")
-        
-        if result and 'result' in result:
-            content = result['result'].get('content', [])
-            if content and len(content) > 0:
-                try:
-                    data = json.loads(content[0]['text'])
-                    print(f"✅ 解析成功，找到 {len(data) if isinstance(data, list) else 'N/A'} 筆資料集")
-                    return data
-                except Exception as e:
-                    print(f"⚠️ 解析 datasets 失敗：{e}")
-                    print(f"   原始內容：{content[0]['text'][:300]}")
-            else:
-                print("⚠️ result 中沒有 content 欄位")
-                print(f"   result 結構：{list(result['result'].keys())}")
+                unit = (
+                    record.get('招標機關') or 
+                    record.get('unit') or 
+                    record.get('機關名稱') or 
+                    record.get('機關') or 
+                    ''
+                )
+                
+                date = (
+                    record.get('公告日期') or 
+                    record.get('date') or 
+                    record.get('招標公告日期') or 
+                    record.get('公告日') or 
+                    ''
+                )
+                
+                # 清理預算金額
+                budget = parse_budget(budget_str)
+                
+                # 過濾條件
+                if not title or budget <= 0:
+                    continue
+                    
+                if budget > max_budget:
+                    continue
+                
+                # 關鍵字比對（如果有關鍵字）
+                if keyword:
+                    keyword_match = keyword in title
+                    if not keyword_match:
+                        # 檢查是否包含其他相關關鍵字
+                        keyword_match = any(kw in title for kw in include_keywords)
+                    if not keyword_match:
+                        continue
+                
+                tenders.append({
+                    'title': title,
+                    'budget': budget,
+                    'unit': unit or '未提供',
+                    'date': date,
+                    'source': '政府開放資料平台'
+                })
+            
+            print(f"   ✅ 過濾後找到 {len(tenders)} 筆符合條件的標案")
+            
         else:
-            print("⚠️ result 中沒有 'result' 欄位")
-            if result:
-                print(f"   回應結構：{list(result.keys())}")
-        
-        return None
+            print(f"   ❌ API 請求失敗：{response.status_code}")
+            
+    except requests.exceptions.Timeout:
+        print("   ⏰ 請求超時")
+    except requests.exceptions.ConnectionError:
+        print("   🔌 連線失敗")
+    except Exception as e:
+        print(f"   ❌ 發生錯誤：{e}")
     
-    def get_dataset(self, dataset_id: str) -> Optional[Dict]:
-        result = self.call_tool("opendata-get_dataset", {"dataset_id": dataset_id})
-        if result and 'result' in result:
-            content = result['result'].get('content', [])
-            if content and len(content) > 0:
-                try:
-                    return json.loads(content[0]['text'])
-                except:
-                    pass
-        return None
-    
-    def query_rows(self, dataset_id: str, where: Dict = None, limit: int = 100) -> Optional[List[Dict]]:
-        arguments = {"dataset_id": dataset_id, "limit": limit}
-        if where:
-            arguments["where"] = where
-        
-        result = self.call_tool("opendata-query_rows", arguments)
-        if result and 'result' in result:
-            content = result['result'].get('content', [])
-            if content and len(content) > 0:
-                try:
-                    return json.loads(content[0]['text'])
-                except:
-                    pass
-        return None
+    return tenders
 
-
-def search_tenders(keyword: str = "景觀", max_budget: int = 36000000, limit: int = 20):
-    api_key = os.environ.get('TWINKLE_API_KEY')
-    if not api_key:
-        print("❌ 錯誤：找不到 TWINKLE_API_KEY 環境變數")
-        return []
-    
-    client = TwinkleHubClient(api_key, debug=True)
-    
-    if not client.initialize():
-        print("❌ 初始化失敗，請檢查 API Key")
-        return []
-    
-    # 先嘗試列出所有工具，確認連線正常
-    print("\n🔧 列出所有可用工具...")
-    tools = client.list_tools()
-    if tools:
-        print(f"✅ 可用工具：{tools}")
-    else:
-        print("⚠️ 無法取得工具列表")
-    
-    # 嘗試列出所有領域
-    print("\n📂 列出所有資料領域...")
-    domains = client.list_domains()
-    if domains:
-        print(f"✅ 找到 {len(domains)} 個領域")
-        for d in domains[:5]:
-            print(f"   - {d}")
-    else:
-        print("⚠️ 無法取得領域列表")
-    
-    # 搜尋資料集
-    print(f"\n🔍 搜尋關鍵字：{keyword}")
-    datasets = client.search_datasets(
-        query=keyword,
-        domain="procurement_subsidy",
-        limit=5
-    )
-    
-    if not datasets:
-        print("❌ 找不到相關資料集")
-        print("💡 嘗試不指定 domain 再搜尋一次...")
-        datasets = client.search_datasets(
-            query=f"{keyword} 採購 工程",
-            domain=None,
-            limit=5
-        )
-    
-    if not datasets:
-        print("❌ 仍然找不到資料集")
-        return []
-    
-    print(f"✅ 找到 {len(datasets)} 個相關資料集")
-    
+def fetch_tenders_from_multiple_sources(keyword: str = "景觀", max_budget: int = 36000000, limit: int = 50) -> List[Dict]:
+    """
+    從多個政府開放資料來源抓取標案
+    """
     all_tenders = []
     
-    for ds in datasets[:3]:
-        dataset_id = ds.get('dataset_id')
-        title = ds.get('title', '')
-        print(f"\n📂 查詢資料集：{title}")
-        print(f"   ID: {dataset_id}")
-        
-        if not dataset_id:
-            continue
-        
-        rows = client.query_rows(
-            dataset_id=dataset_id,
-            where={"預算金額": {"$lte": max_budget}},
-            limit=limit
-        )
-        
-        if rows:
-            print(f"   ✅ 找到 {len(rows)} 筆資料")
-            for row in rows:
-                if isinstance(row, dict):
-                    tender = {
-                        'title': row.get('標案名稱') or row.get('title') or row.get('案名', ''),
-                        'budget': parse_budget(row.get('預算金額') or row.get('budget') or row.get('price', 0)),
-                        'unit': row.get('招標機關') or row.get('unit') or row.get('機關名稱', ''),
-                        'date': row.get('公告日期') or row.get('date') or '',
-                        'source': f'Twinkle Hub - {title[:30]}'
-                    }
-                    if tender['title'] and tender['budget'] > 0:
-                        all_tenders.append(tender)
-        else:
-            print(f"   ⚠️ 此資料集無符合條件的資料")
+    # 多個可能的資料集 ID
+    dataset_ids = [
+        "16834",  # 公共工程標案
+        "15863",  # 政府採購公告
+        "16964",  # 決標公告
+    ]
     
-    return all_tenders
-
+    seen_titles = set()
+    
+    for dataset_id in dataset_ids:
+        try:
+            url = f"https://data.gov.tw/api/v1/rest/dataset/{dataset_id}"
+            response = requests.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                records = data.get('result', {}).get('records', [])
+                
+                for record in records[:50]:
+                    title = record.get('標案名稱') or record.get('title') or ''
+                    
+                    # 去重
+                    if title in seen_titles:
+                        continue
+                    seen_titles.add(title)
+                    
+                    budget = parse_budget(record.get('預算金額') or record.get('budget') or 0)
+                    unit = record.get('招標機關') or record.get('unit') or ''
+                    
+                    if title and budget > 0 and budget <= max_budget:
+                        if keyword in title:
+                            all_tenders.append({
+                                'title': title,
+                                'budget': budget,
+                                'unit': unit or '未提供',
+                                'date': record.get('公告日期') or '',
+                                'source': f'政府開放資料 (資料集 {dataset_id})'
+                            })
+                
+                print(f"   ✅ 資料集 {dataset_id}：找到 {len(all_tenders)} 筆")
+                
+        except Exception as e:
+            print(f"   ⚠️ 資料集 {dataset_id} 無法存取：{e}")
+    
+    return all_tenders[:limit]
 
 def parse_budget(value) -> int:
-    import re
+    """解析預算金額"""
     if isinstance(value, (int, float)):
         return int(value)
+    
     if isinstance(value, str):
+        # 移除千分位、貨幣符號等
         clean = re.sub(r'[^\d]', '', value)
         return int(clean) if clean.isdigit() else 0
+    
     return 0
 
-
 def save_results(tenders: List[Dict], filename: str = "tender_results.json"):
+    """儲存查詢結果"""
     result = {
         "query_time": datetime.now().isoformat(),
         "total_count": len(tenders),
         "tenders": tenders
     }
+    
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
+    
     print(f"\n✅ 結果已儲存至 {filename}")
 
+def generate_html_report(tenders: List[Dict], filename: str = "tender_report.html"):
+    """產生 HTML 報告（可選）"""
+    html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>標案查詢結果</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        table {{ border-collapse: collapse; width: 100%; }}
+        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+        th {{ background-color: #4CAF50; color: white; }}
+        tr:nth-child(even) {{ background-color: #f2f2f2; }}
+        .budget {{ color: #e74c3c; font-weight: bold; }}
+    </style>
+</head>
+<body>
+    <h1>🏗️ 標案查詢結果</h1>
+    <p>查詢時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+    <p>找到 <strong>{len(tenders)}</strong> 筆符合條件的標案</p>
+    
+    <table>
+        <tr>
+            <th>#</th>
+            <th>標案名稱</th>
+            <th>預算金額</th>
+            <th>招標機關</th>
+            <th>公告日期</th>
+            <th>資料來源</th>
+        </tr>
+"""
+    
+    for i, t in enumerate(tenders, 1):
+        html += f"""
+        <tr>
+            <td>{i}</td>
+            <td>{t['title']}</td>
+            <td class="budget">${t['budget']:,}</td>
+            <td>{t['unit']}</td>
+            <td>{t.get('date', 'N/A')}</td>
+            <td>{t.get('source', 'N/A')}</td>
+        </tr>
+"""
+    
+    html += """
+    </table>
+</body>
+</html>
+"""
+    
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(html)
+    
+    print(f"✅ HTML 報告已儲存至 {filename}")
 
 def main():
+    """主程式"""
     print("="*60)
-    print("🧪 Twinkle Hub 標案查詢工具（除錯模式）")
+    print("🏗️ 政府開放資料平台 - 標案查詢工具")
     print("="*60)
     
-    tenders = search_tenders(
+    # 查詢標案
+    tenders = fetch_tenders_from_gov_data(
         keyword="景觀",
         max_budget=36000000,
-        limit=20
+        limit=50
     )
     
-    save_results(tenders)
+    # 如果找不到，嘗試放寬條件
+    if not tenders:
+        print("\n⚠️ 沒有找到符合條件的標案，嘗試放寬關鍵字...")
+        tenders = fetch_tenders_from_gov_data(
+            keyword="工程",  # 放寬關鍵字
+            max_budget=36000000,
+            limit=50
+        )
     
+    # 儲存結果
+    save_results(tenders)
+    generate_html_report(tenders)
+    
+    # 顯示結果
     if tenders:
         print(f"\n✅ 共找到 {len(tenders)} 筆符合條件的標案：")
         for i, t in enumerate(tenders[:10], 1):
             print(f"\n{i}. {t['title']}")
             print(f"   預算金額：${t['budget']:,}")
             print(f"   招標機關：{t['unit']}")
+            print(f"   公告日期：{t.get('date', 'N/A')}")
     else:
         print("\n⚠️ 沒有找到符合條件的標案")
-
+        print("建議：")
+        print("  1. 嘗試不同的關鍵字（如：工程、採購、新建）")
+        print("  2. 放寬預算上限")
+        print("  3. 直接至政府電子採購網查詢：https://web.pcc.gov.tw")
 
 if __name__ == "__main__":
     main()
