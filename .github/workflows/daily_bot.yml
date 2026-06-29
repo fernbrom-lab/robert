@@ -25,9 +25,9 @@ jobs:
 
     - name: 4. 執行 Python 生成網頁
       run: |
-        python  1run_clean_crawler.py
+        python main_crawler.py
 
-    - name: 5. 上傳網頁成果 (不使用 Git Commit)
+    - name: 5. 上傳網頁成果
       uses: actions/upload-artifact@v4
       with:
         name: website-dist
