@@ -12,9 +12,11 @@ MAX_BUDGET = 36000000  # 丙級營造上限 3600 萬
 INCLUDE_KEYWORDS = ["景觀", "植生", "綠牆", "綠美化", "園藝", "假設工程", "圍籬", "鷹架", "新建", "公廁"]
 EXCLUDE_KEYWORDS = ["主體建築", "下水道", "橋樑", "隧道", "捷運", "高鐵", "都市更新"]
 
-# 2. 為避免任何環境文字替換錯誤，直接用相加組合
-api_base = "https://ronny.tw"
-api_url = f"{api_base}?date={today_str}"
+# 2. 【防瀏覽器外掛竄改核心】將網址全數轉為數字 ASCII 編碼，強迫微軟雲端開機後才相加還原
+# 解碼後會精準還原為: https://pcc.g0v.ronny.tw/api/listbydate?date=
+ascii_codes = [104, 116, 116, 112, 115, 58, 47, 47, 112, 99, 99, 46, 103, 48, 118, 46, 114, 111, 110, 110, 121, 46, 116, 119, 47, 97, 112, 105, 47, 108, 105, 115, 116, 98, 121, 100, 97, 116, 101, 63, 100, 97, 116, 101, 61]
+api_base_url = "".join(chr(c) for c in ascii_codes)
+api_url = f"{api_base_url}{today_str}"
 
 def save_html(title, content, filename):
     html_code = f"""
@@ -46,20 +48,20 @@ try:
     print(f"📡 正在請求 API 網址: {api_url}")
     
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "application/json"
     }
     response = requests.get(api_url, headers=headers, timeout=25)
     
-    # 自癒邏輯
+    # 【403 自癒避雷針】若機房集體撞牆遭到 403 阻擋，自動導向友善提示頁面，不阻斷 Render 部署
     if response.status_code == 403:
         print("⚠️ 偵測到 403 阻擋，自動啟動備用網頁生成機制...")
         os.makedirs("dist", exist_ok=True)
         fallback_content = "<h2>📅 標案日報系統</h2><hr>"
-        fallback_content += "<div class='alert alert-warning'>⚠️ 今日官方 API 暫時阻擋海外機房流量 (HTTP 403)。系統已安排自動重試。</div>"
+        fallback_content += "<div class='alert alert-warning'>⚠️ <b>系統提示：</b>今日官方 API 暫時阻擋海外機房流量 (HTTP 403)。系統已安排自動重試。</div>"
         fallback_content += f"<p class='mt-3'>🔗 <b>手動查閱：</b><a href='https://pcc.gov.tw{today_str}' target='_blank' class='btn btn-warning btn-sm'>直接開啟政府採購網當日列表</a></p>"
         save_html(f"{today_date} 系統維護中", fallback_content, "dist/index.html")
-        print("🎉 備用網頁已成功部署完畢！")
+        print("🎉 備用安全網頁已成功部署完畢！")
         exit(0)
         
     if response.status_code != 200:
