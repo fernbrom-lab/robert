@@ -4,24 +4,34 @@ import json
 import gzip
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
+import base64
 
 today_date = datetime.now().strftime("%Y-%m-%d")
-print(f"🚀 開始執行【歷史自癒回溯版】標案與新聞過濾... 今日日期：{today_date}")
+print(f"🚀 開始執行【加密防禦自癒版】標案與新聞過濾... 今日日期：{today_date}")
 
 # 1. 漏斗篩選規則
 MAX_BUDGET = 36000000  # 丙級營造上限 3600 萬
 INCLUDE_KEYWORDS = ["景觀", "植生", "綠牆", "綠美化", "園藝", "假設工程", "圍籬", "鷹架", "新建", "公廁"]
 EXCLUDE_KEYWORDS = ["主體建築", "下水道", "橋樑", "隧道", "捷運", "高鐵", "都市更新"]
 
-# 2. 【標準唯一官方網址】不拆解、不加密，確保格式 100% 絕對正確
-api_base_url = "https://githubusercontent.com"
+# 2. 【全密碼軍規防禦】將所有網址前綴完全加密，徹底癱瘓任何瀏覽器外掛的自動改寫
+# 標案解密後為：https://githubusercontent.com
+b64_api_base = "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3Jvbm55d2FuZy9wY2MtY3Jhd2xlci9tYWluL2RhdGEv"
+api_base_url = base64.b64decode(b64_api_base).decode('utf-8')
 
 def fetch_construction_news():
     """抓取最新營造業即時新聞"""
     news_list = []
     try:
-        # 直接使用標準編碼過的 Google RSS 網址，避免外掛修改
-        rss_url = "https://google.com"
+        # 新聞解密後分別為 Google RSS 的前後綴，徹底防止外掛破壞
+        b64_news_base = "aHR0cHM6Ly9uZXdzLmdvb2dsZS5jb20vcnNzL3NlYXJjaD9xPQ=="
+        b64_news_tail = "Jmhscj16aC1UVyZnbD1UVyZjZWlkPVRXOnpoLUhhbnQ="
+        news_query = "(營造業 OR 景觀工程 OR 綠美化 OR 假設工程)"
+        
+        url_base = base64.b64decode(b64_news_base).decode('utf-8')
+        url_tail = base64.b64decode(b64_news_tail).decode('utf-8')
+        rss_url = f"{url_base}{news_query}{url_tail}"
+        
         headers = {"User-Agent": "Mozilla/5.0"}
         res = requests.get(rss_url, headers=headers, timeout=15)
         if res.status_code == 200:
@@ -33,7 +43,7 @@ def fetch_construction_news():
                     "source": item.find("source").text if item.find("source") is not None else "產業媒體"
                 })
     except Exception as e:
-        print(f"⚠️ 新聞模組提示: {e}")
+        print(f"⚠️ 新聞模組安全提示: {e}")
     return news_list
 
 def save_html(title, content, filename):
@@ -63,36 +73,36 @@ def save_html(title, content, filename):
         f.write(html_code)
 
 try:
-    # 先行抓取右側即時新聞
+    # 執行新聞抓取
     today_news = fetch_construction_news()
     
-    # 3. 核心時光機回溯邏輯
+    # 3. 核心時光機自動回溯備援機制
     response = None
     target_fetch_date_str = ""
     target_show_date_str = ""
     
-    for i in range(5): # 最多往前追溯 4 天，確保一定能跨越週休二日抓到有上班的檔案
+    for i in range(5): # 最多自動往前追溯 4 天，100% 保證能跨越週休二日撈到有上班工作日的標案
         check_date = datetime.now() - timedelta(days=i)
         target_fetch_date_str = check_date.strftime("%Y%m%d")
         target_show_date_str = check_date.strftime("%Y-%m-%d")
         
         backup_url = f"{api_base_url}{target_fetch_date_str}.json.gz"
-        print(f"📡 正在發送正確連線 ──► 正在檢測 {target_show_date_str} 的標案大數據包...")
+        print(f"📡 【安全隔離】正在檢測 {target_show_date_str} 的全台標案大數據包...")
         
         headers = {"User-Agent": "Mozilla/5.0"}
         res = requests.get(backup_url, headers=headers, timeout=15)
         
         if res.status_code == 200:
             response = res
-            print(f"🎯 成功對接！系統將自動讀取並清洗 【{target_show_date_str}】 的歷史標案大數據！")
+            print(f"🎯 對接成功！系統自動鎖定並清洗 【{target_show_date_str}】 標案大數據！")
             break
         else:
-            print(f"ℹ️ {target_show_date_str} 大數據包尚未就位 (HTTP {res.status_code})，自動繼續往前搜尋...")
+            print(f"ℹ️ {target_show_date_str} 大數據包尚未就位 (HTTP {res.status_code})，自動繼續往前追溯...")
 
     left_column = ""
     right_column = ""
     
-    # 組裝右側新聞
+    # 組裝右側：即時產業新聞
     right_column += "<h3 class='text-success mb-3'>📰 營造業與景觀即時新聞</h3>"
     if not today_news:
         right_column += "<p class='text-muted'>今日暫無重大法規或工程產業新聞變動。</p>"
@@ -110,17 +120,18 @@ try:
             """
         right_column += "</div>"
 
+    # 終極相容防線 (若連續四天無檔案的極低機率保險)
     if response is None:
-        print("⚠️ 警告：連續多日數據均未就位，啟動終極安全安全相容模式...")
+        print("⚠️ 警告：連續多日數據均未就位，啟動終極相容模式...")
         os.makedirs("dist", exist_ok=True)
         left_column += "<h3 class='text-primary mb-3'>📅 適合公司之標案日報</h3>"
-        left_column += "<div class='alert alert-warning shadow-sm'>⚠️ <b>系統提示：</b>全台公共工程大數據包正在維護中。</div>"
+        left_column += "<div class='alert alert-warning shadow-sm'>⚠️ <b>系統提示：</b>全台公共工程大數據包正在進行維護。</div>"
         left_column += f"<p class='mt-3'><a href='https://pcc.gov.tw' target='_blank' class='btn btn-warning w-100 py-2 fw-bold shadow-sm'>直接開啟：政府電子採購網首頁</a></p>"
         full_content = f"<div class='row g-4'><div class='col-lg-7'>{left_column}</div><div class='col-lg-5'>{right_column}</div></div>"
         save_html(f"{today_date} 智慧情報站", full_content, "dist/index.html")
         exit(0)
 
-    # 4. 正常解壓並過濾數據
+    # 4. 記憶體高階解壓縮與漏斗過濾
     decompressed_data = gzip.decompress(response.content)
     all_records = json.loads(decompressed_data.decode('utf-8'))
     tenders = all_records if isinstance(all_records, list) else all_records.get("records", [])
@@ -143,10 +154,10 @@ try:
                 "url": pcc_url
             })
 
-    # 組裝左側標案
+    # 組裝左側：標案清單表格
     current_time_str = datetime.now().strftime("%H:%M:%S")
     left_column += f"<h2>📅 推薦投標標案清單</h2>"
-    left_column += f"<p class='text-muted'>📊 <b>數據來源：</b>{target_show_date_str} 發布之全台公告 ｜ ⏱️ <b>更新時間：</b>{current_time_str}</p><hr>"
+    left_column += f"<p class='text-muted'>📊 <b>數據來源：</b>{target_show_date_str} 全台公告 ｜ ⏱️ <b>更新時間：</b>{current_time_str}</p><hr>"
     
     if not today_tenders_formatted:
         left_column += f"<div class='alert alert-light border shadow-sm'>【{target_show_date_str}】當天無符合公司條件的新發布標案。</div>"
@@ -157,11 +168,11 @@ try:
             left_column += f"<tr><td><b>{t['title']}</b></td><td class='text-danger fw-bold'>${t['budget']:,}</td><td>{t['unit']}</td><td><a href='{t['url']}' target='_blank' class='btn btn-primary btn-sm rounded-pill px-3'>查看公告</a></td></tr>"
         left_column += "</tbody></table></div>"
 
-    # 5. 合併雙欄並發布
+    # 5. 合併發布
     os.makedirs("dist", exist_ok=True)
     full_content = f"<div class='row g-4'><div class='col-lg-7'>{left_column}</div><div class='col-lg-5'>{right_column}</div></div>"
     save_html(f"{today_date} 智慧情報站", full_content, "dist/index.html")
-    print(f"🎉 成功解壓並回溯展示【{target_show_date_str}】大數據，雙欄網頁完美建置！")
+    print(f"🎉 成功解壓並回溯展示【{target_show_date_str}】大數據，網頁發布完畢！")
 
 except Exception as e:
     print(f"❌ 錯誤中斷: {e}")
