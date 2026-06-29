@@ -7,27 +7,25 @@ from datetime import datetime, timedelta
 import base64
 
 today_date = datetime.now().strftime("%Y-%m-%d")
-print(f"🚀 開始執行【加密防禦自癒版】標案與新聞過濾... 今日日期：{today_date}")
+print(f"🚀 開始執行【終極完美雙欄版】標案與新聞過濾... 今日日期：{today_date}")
 
 # 1. 漏斗篩選規則
 MAX_BUDGET = 36000000  # 丙級營造上限 3600 萬
 INCLUDE_KEYWORDS = ["景觀", "植生", "綠牆", "綠美化", "園藝", "假設工程", "圍籬", "鷹架", "新建", "公廁"]
 EXCLUDE_KEYWORDS = ["主體建築", "下水道", "橋樑", "隧道", "捷運", "高鐵", "都市更新"]
 
-# 2. 【全密碼軍規防禦】將所有網址前綴完全加密，徹底癱瘓任何瀏覽器外掛的自動改寫
-# 標案解密後為：https://githubusercontent.com
-b64_api_base = "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3Jvbm55d2FuZy9wY2MtY3Jhd2xlci9tYWluL2RhdGEv"
-api_base_url = base64.b64decode(b64_api_base).decode('utf-8')
+# 2. 【正確社群備份路徑修復】解密後為目前社群真正用來存放每日 json 封裝包的 gh-pages 開放分支路徑
+# 網址解密後還原為：https://githubusercontent.com
+b64_correct_base = "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3Jvbm55d2FuZy9wY2MtY3Jhd2xlci9naC1wYWdlcy9kYXRlLw=="
+api_base_url = base64.b64decode(b64_correct_base).decode('utf-8')
 
 def fetch_construction_news():
     """抓取最新營造業即時新聞"""
     news_list = []
     try:
-        # 新聞解密後分別為 Google RSS 的前後綴，徹底防止外掛破壞
         b64_news_base = "aHR0cHM6Ly9uZXdzLmdvb2dsZS5jb20vcnNzL3NlYXJjaD9xPQ=="
         b64_news_tail = "Jmhscj16aC1UVyZnbD1UVyZjZWlkPVRXOnpoLUhhbnQ="
         news_query = "(營造業 OR 景觀工程 OR 綠美化 OR 假設工程)"
-        
         url_base = base64.b64decode(b64_news_base).decode('utf-8')
         url_tail = base64.b64decode(b64_news_tail).decode('utf-8')
         rss_url = f"{url_base}{news_query}{url_tail}"
@@ -43,7 +41,7 @@ def fetch_construction_news():
                     "source": item.find("source").text if item.find("source") is not None else "產業媒體"
                 })
     except Exception as e:
-        print(f"⚠️ 新聞模組安全提示: {e}")
+        print(f"⚠️ 新聞模組提示: {e}")
     return news_list
 
 def save_html(title, content, filename):
@@ -73,15 +71,14 @@ def save_html(title, content, filename):
         f.write(html_code)
 
 try:
-    # 執行新聞抓取
     today_news = fetch_construction_news()
     
-    # 3. 核心時光機自動回溯備援機制
+    # 3. 核心時光機自動回溯備援機制 (擴大到往前搜尋 6 天，保證連假過後點開網頁一樣有表格)
     response = None
     target_fetch_date_str = ""
     target_show_date_str = ""
     
-    for i in range(5): # 最多自動往前追溯 4 天，100% 保證能跨越週休二日撈到有上班工作日的標案
+    for i in range(7): 
         check_date = datetime.now() - timedelta(days=i)
         target_fetch_date_str = check_date.strftime("%Y%m%d")
         target_show_date_str = check_date.strftime("%Y-%m-%d")
@@ -97,7 +94,7 @@ try:
             print(f"🎯 對接成功！系統自動鎖定並清洗 【{target_show_date_str}】 標案大數據！")
             break
         else:
-            print(f"ℹ️ {target_show_date_str} 大數據包尚未就位 (HTTP {res.status_code})，自動繼續往前追溯...")
+            print(f"ℹ️ {target_show_date_str} 檔案因尚未就位或週末工作停擺 (HTTP {res.status_code})，繼續向前追溯...")
 
     left_column = ""
     right_column = ""
@@ -120,9 +117,9 @@ try:
             """
         right_column += "</div>"
 
-    # 終極相容防線 (若連續四天無檔案的極低機率保險)
+    # 自癒降級提示
     if response is None:
-        print("⚠️ 警告：連續多日數據均未就位，啟動終極相容模式...")
+        print("⚠️ 警告：連續多日數據均未就位，啟動安全相容模式...")
         os.makedirs("dist", exist_ok=True)
         left_column += "<h3 class='text-primary mb-3'>📅 適合公司之標案日報</h3>"
         left_column += "<div class='alert alert-warning shadow-sm'>⚠️ <b>系統提示：</b>全台公共工程大數據包正在進行維護。</div>"
