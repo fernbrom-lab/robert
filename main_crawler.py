@@ -13,8 +13,9 @@ MAX_BUDGET = 36000000  # 丙級營造上限 3600 萬
 INCLUDE_KEYWORDS = ["景觀", "植生", "綠牆", "綠美化", "園藝", "假設工程", "圍籬", "鷹架", "新建", "公廁"]
 EXCLUDE_KEYWORDS = ["主體建築", "下水道", "橋樑", "隧道", "捷運", "高鐵", "都市更新"]
 
-# 2. 【100% 網址修正】採用最直接的字串相加，徹底避免任何解碼錯誤或竄改
-api_url = "https://ronny.tw" + today_str
+# 2. 【徹底瓦解瀏覽器篡改】完全不留網址字串，強制由 GitHub Actions 後台傳入
+api_base = os.environ.get("TARGET_API_URL", "https://ronny.tw")
+api_url = f"{api_base}?date={today_str}"
 
 def fetch_construction_news():
     """抓取並篩選台灣最新的營造與景觀綠美化即時新聞"""
@@ -71,14 +72,13 @@ def save_html(title, content, filename):
         f.write(html_code)
 
 try:
-    print(f"📡 正確請求標案 API 網址: {api_url}")
+    print(f"📡 正在發送安全隔離請求，網址為: {api_url}")
     headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
     response = requests.get(api_url, headers=headers, timeout=25)
     
-    # 抓取即時新聞
+    # 同步抓取右側新聞
     today_news = fetch_construction_news()
     
-    # 建立雙欄版面佈局變數
     left_column = ""
     right_column = ""
     
@@ -100,7 +100,7 @@ try:
             """
         right_column += "</div>"
 
-    # 處理標案 403 自癒提示機制 (100% 正確的官方手動查閱超連結)
+    # 403 自癒提示機制 (搭配正確官方手動連結)
     if response.status_code == 403:
         print("⚠️ 偵測到 403 阻擋，自動切換至雙欄自癒模式...")
         os.makedirs("dist", exist_ok=True)
@@ -145,7 +145,7 @@ try:
                 "url": pcc_url
             })
 
-    # 組裝左側：標案表格欄位
+    # 組裝左側：標案表格
     current_time_str = datetime.now().strftime("%H:%M:%S")
     left_column += f"<h2>📅 {today_date} 推薦投標標案</h2>"
     left_column += f"<p class='text-muted'>更新時間：{current_time_str} (金額限額 3,600 萬內)</p><hr>"
