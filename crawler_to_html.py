@@ -12,8 +12,8 @@ MAX_BUDGET = 36000000  # 丙級營造上限 3600 萬
 INCLUDE_KEYWORDS = ["景觀", "植生", "綠牆", "綠美化", "園藝", "假設工程", "圍籬", "鷹架", "新建", "公廁"]
 EXCLUDE_KEYWORDS = ["主體建築", "下水道", "橋樑", "隧道", "捷運", "高鐵", "都市更新"]
 
-# 2. 修正後的正確 g0v API 網址拼接格式
-api_url = f"https://ronny.tw{today_str}"
+# 2. 採用最安全的字串相加，確保網址絕對不變形
+api_url = "https://ronny.tw" + today_str
 
 # HTML 頁面公用模板 (整合 Bootstrap)
 def save_html(title, content, filename):
