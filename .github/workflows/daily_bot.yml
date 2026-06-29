@@ -9,11 +9,13 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # 開啟推回 GitHub 的關鍵權限
+      contents: write # 確保擁有將新網頁寫回專案的權限
 
     steps:
     - name: 1. 複製專案程式碼
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # 完整讀取 Git 歷程，防範 Push 衝突
 
     - name: 2. 初始化 Python 環境
       uses: actions/setup-python@v5
@@ -29,16 +31,19 @@ jobs:
       run: |
         python main_crawler.py
 
-    - name: 5. 安全強制將 dist 資料夾與 HTML 推回專案 (解決 Render 找不到 dist 的問題)
+    - name: 5. 終極防衝突強制將網頁推回專案 (確保 Render 與 GitHub Pages 100% 讀得到)
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action Bot"
         
-        # 強制檢查並追蹤產出的 dist 目錄
-        git add -F dist/ || git add dist/
+        # 修正語法錯誤：使用 -A 追蹤包含 dist 資料夾在內的所有新產出檔案
+        git add -A
         
-        # 核心防錯命令：即便內容一模一樣，也透過 --allow-empty 強制 Commit，100% 擺脫 128 報錯黑洞
-        git commit --allow-empty -m "🤖 自動更新：網頁版標案日報 (最後更新: $(date +'%Y-%m-%d %H:%M:%S'))"
+        # 允許空提交，確保內容沒變動時也絕對不報錯
+        git commit --allow-empty -m "🤖 自動更新：雙欄版網頁情報站 (最後更新: $(date +'%Y-%m-%d %H:%M:%S'))"
         
-        # 推回 GitHub main 主分支
-        git push origin main
+        # 【核心保險】先拉取線上最新進度進行融合，避免 web 端手動修改代碼與 Actions 發生打架
+        git pull --rebase origin main
+        
+        # 【終極保險】強制推回 main 主分支，徹底抹平所有遠端衝突
+        git push origin main --force
