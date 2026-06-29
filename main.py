@@ -12,7 +12,6 @@ def fetch_construction_news():
     """抓取最新營造業即時新聞"""
     news_list = []
     try:
-        # 使用多個新聞來源
         rss_sources = [
             "https://feeds.feedburner.com/udnnews",
             "https://news.google.com/rss/search?q=營造+工程&hl=zh-TW&gl=TW&ceid=TW:zh"
@@ -41,7 +40,6 @@ def fetch_construction_news():
     except Exception as e:
         print(f"⚠️ 新聞模組提示: {e}")
     
-    # 如果沒有抓到新聞，使用備用資料
     if not news_list:
         news_list = [
             {"title": "🏗️ 營造業景氣回溫，公共工程標案持續增加", "url": "#", "source": "產業快訊"},
@@ -53,10 +51,8 @@ def fetch_construction_news():
         ]
     return news_list[:6]
 
-# 執行新聞抓取
 today_news = fetch_construction_news()
 
-# 組裝右側新聞 HTML 區塊
 right_column = "<h3 class='text-success mb-3'>📰 營造業與景觀即時新聞</h3>"
 right_column += "<div class='list-group shadow-sm'>"
 for n in today_news:
@@ -71,7 +67,6 @@ for n in today_news:
     """
 right_column += "</div>"
 
-# 生成進階版 HTML（包含真實資料抓取功能）
 html_code = f"""
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -174,7 +169,6 @@ html_code = f"""
     </style>
 </head>
 <body>
-    <!-- Toast 通知 -->
     <div class="toast-container">
         <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header">
@@ -187,7 +181,6 @@ html_code = f"""
         </div>
     </div>
 
-    <!-- 導航欄 -->
     <nav class="navbar navbar-dark bg-dark mb-4">
         <div class="container-fluid px-4">
             <span class="navbar-brand mb-0 h1">
@@ -205,7 +198,6 @@ html_code = f"""
     </nav>
     
     <div class="container-fluid px-4">
-        <!-- 統計卡片 -->
         <div class="row g-3 mb-4" id="statsRow">
             <div class="col-md-3">
                 <div class="stat-card">
@@ -255,9 +247,7 @@ html_code = f"""
             </div>
         </div>
 
-        <!-- 主內容 -->
         <div class="row g-4">
-            <!-- 左側欄：標案列表 -->
             <div class="col-lg-7">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h3 class="text-primary mb-0">
@@ -268,7 +258,6 @@ html_code = f"""
                     </span>
                 </div>
                 
-                <!-- 過濾器 -->
                 <div id="advancedFilters" style="display: none;" class="mb-3 p-3 bg-white rounded shadow-sm">
                     <h6><i class="bi bi-funnel"></i> 進階過濾條件</h6>
                     <div class="row g-2">
@@ -300,7 +289,6 @@ html_code = f"""
                 </p>
                 <hr>
                 
-                <!-- 標案容器 -->
                 <div id="tender-container">
                     <div class="d-flex justify-content-center my-4 loading-pulse" id="loading-spinner">
                         <div class="spinner-border text-primary" role="status">
@@ -310,7 +298,6 @@ html_code = f"""
                     </div>
                 </div>
                 
-                <!-- 快速連結 -->
                 <div class="mt-4 p-3 bg-white rounded shadow-sm">
                     <h6><i class="bi bi-link-45deg"></i> 快速查詢連結：</h6>
                     <div class="d-flex flex-wrap gap-2">
@@ -327,14 +314,12 @@ html_code = f"""
                 </div>
             </div>
             
-            <!-- 右側欄：新聞 -->
             <div class="col-lg-5">
                 {right_column}
             </div>
         </div>
     </div>
     
-    <!-- 頁尾 -->
     <footer class="container-fluid px-4 mt-5 py-3 border-top bg-white">
         <div class="row">
             <div class="col text-center text-muted small">
@@ -347,14 +332,11 @@ html_code = f"""
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // 全局變數
         let allTenders = [];
         let filteredTenders = [];
         let isAdvancedVisible = false;
 
-        // 真實標案資料（從多個來源收集）
         const realTenderData = [
-            // 2026年真實標案範例（從政府採購網整理）
             {{ 
                 title: "桃園市立圖書館周邊景觀改善工程", 
                 budget: 28500000, 
@@ -437,7 +419,6 @@ html_code = f"""
             }}
         ];
 
-        // 顯示 Toast 通知
         function showToast(message, type = 'info') {{
             const toast = document.getElementById('liveToast');
             const toastBody = document.getElementById('toastMessage');
@@ -446,14 +427,12 @@ html_code = f"""
             bsToast.show();
         }}
 
-        // 切換進階過濾器
         function toggleAdvanced() {{
             const filters = document.getElementById('advancedFilters');
             isAdvancedVisible = !isAdvancedVisible;
             filters.style.display = isAdvancedVisible ? 'block' : 'none';
         }}
 
-        // 套用過濾器
         function applyFilters() {{
             const budgetLimit = parseInt(document.getElementById('budgetRange').value);
             const keyword = document.getElementById('keywordFilter').value.toLowerCase();
@@ -467,10 +446,9 @@ html_code = f"""
             
             renderTenders(filteredTenders);
             updateStats(filteredTenders);
-            showToast(`已套用過濾條件，顯示 ${filteredTenders.length} 筆標案`, 'success');
+            showToast(`已套用過濾條件，顯示 ${{filteredTenders.length}} 筆標案`, 'success');
         }}
 
-        // 重置過濾器
         function resetFilters() {{
             document.getElementById('budgetRange').value = 36000000;
             document.getElementById('budgetRangeLabel').textContent = '$36,000,000';
@@ -481,20 +459,22 @@ html_code = f"""
             showToast('已重置所有過濾條件', 'info');
         }}
 
-        // 更新統計數據
         function updateStats(tenders) {{
             document.getElementById('totalCount').textContent = allTenders.length;
             document.getElementById('matchedCount').textContent = tenders.length;
             
             if (tenders.length > 0) {{
-                const avg = tenders.reduce((sum, t) => sum + t.budget, 0) / tenders.length;
+                let sum = 0;
+                for (let i = 0; i < tenders.length; i++) {{
+                    sum += tenders[i].budget;
+                }}
+                const avg = sum / tenders.length;
                 document.getElementById('avgBudget').textContent = '$' + Math.round(avg).toLocaleString();
             }} else {{
                 document.getElementById('avgBudget').textContent = '$0';
             }}
         }}
 
-        // 渲染標案表格
         function renderTenders(tenders) {{
             const container = document.getElementById('tender-container');
             
@@ -523,14 +503,15 @@ html_code = f"""
                         <tbody>
             `;
             
-            // 依預算金額排序（由低到高）
             tenders.sort((a, b) => a.budget - b.budget);
             
-            tenders.forEach((t, index) => {{
+            for (let i = 0; i < tenders.length; i++) {{
+                const t = tenders[i];
                 const badgeColor = t.budget < 10000000 ? 'success' : 
                                  t.budget < 20000000 ? 'warning' : 'danger';
                 const icon = t.budget < 10000000 ? 'bi-emoji-smile' : 
                             t.budget < 20000000 ? 'bi-emoji-neutral' : 'bi-emoji-frown';
+                const percent = ((t.budget / 36000000) * 100).toFixed(1);
                 
                 tableHtml += `
                     <tr class="tender-card" onclick="window.open('${{t.url}}', '_blank')">
@@ -544,7 +525,7 @@ html_code = f"""
                             <span class="badge bg-${{badgeColor}} badge-budget">
                                 <i class="bi ${{icon}}"></i> $${{t.budget.toLocaleString()}}
                             </span>
-                            <div class="progress-bar-custom mt-1" style="width: ${{(t.budget/36000000*100).toFixed(1)}}%;"></div>
+                            <div class="progress-bar-custom mt-1" style="width: ${{percent}}%;"></div>
                         </td>
                         <td><small>${{t.unit}}</small></td>
                         <td>
@@ -554,58 +535,64 @@ html_code = f"""
                         </td>
                     </tr>
                 `;
-            }});
+            }}
             
             tableHtml += `</tbody></table></div>`;
+            
+            // 計算最低和最高預算
+            let minBudget = tenders[0].budget;
+            let maxBudget = tenders[0].budget;
+            for (let i = 1; i < tenders.length; i++) {{
+                if (tenders[i].budget < minBudget) minBudget = tenders[i].budget;
+                if (tenders[i].budget > maxBudget) maxBudget = tenders[i].budget;
+            }}
+            
             tableHtml += `
                 <div class="mt-2 text-muted small">
-                    <i class="bi bi-info-circle"></i> 共篩選出 ${tenders.length} 筆符合條件的標案
+                    <i class="bi bi-info-circle"></i> 共篩選出 ${{tenders.length}} 筆符合條件的標案
                     <span class="ms-3">
-                        <i class="bi bi-arrow-up"></i> 最低：$${Math.min(...tenders.map(t => t.budget)).toLocaleString()}
-                        <i class="bi bi-arrow-down ms-2"></i> 最高：$${Math.max(...tenders.map(t => t.budget)).toLocaleString()}
+                        <i class="bi bi-arrow-up"></i> 最低：$${{minBudget.toLocaleString()}}
+                        <i class="bi bi-arrow-down ms-2"></i> 最高：$${{maxBudget.toLocaleString()}}
                     </span>
                 </div>
             `;
             container.innerHTML = tableHtml;
         }}
 
-        // 更新預算範圍標籤
         document.getElementById('budgetRange').addEventListener('input', function() {{
             const value = parseInt(this.value);
             document.getElementById('budgetRangeLabel').textContent = '$' + value.toLocaleString();
         }});
 
-        // 主要載入函數
         async function loadTenders() {{
             const container = document.getElementById('tender-container');
             const timeLabel = document.getElementById('update-time');
             
             try {{
-                // 嘗試從 g0v API 獲取資料
                 const today = new Date();
                 const year = today.getFullYear();
                 const month = String(today.getMonth() + 1).padStart(2, '0');
                 const day = String(today.getDate()).padStart(2, '0');
                 const todayStr = `${{year}}${{month}}${{day}}`;
                 
-                // 嘗試多個 API 端點
                 const apiUrls = [
                     `https://ronny.tw/api/tender?date=${{todayStr}}`,
-                    `https://api.ronny.tw/tender/${{todayStr}}`,
-                    `https://data.gov.tw/api/v1/rest/dataset/12345`
+                    `https://api.ronny.tw/tender/${{todayStr}}`
                 ];
                 
-                let apiData = null;
                 let apiRecords = [];
                 
                 for (const apiUrl of apiUrls) {{
                     try {{
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 5000);
                         const response = await fetch(apiUrl, {{ 
                             headers: {{ 'Accept': 'application/json' }},
-                            signal: AbortSignal.timeout(5000)
+                            signal: controller.signal
                         }});
+                        clearTimeout(timeoutId);
                         if (response.ok) {{
-                            apiData = await response.json();
+                            const apiData = await response.json();
                             apiRecords = apiData.records || apiData.data || [];
                             if (apiRecords.length > 0) {{
                                 break;
@@ -616,12 +603,9 @@ html_code = f"""
                     }}
                 }}
                 
-                // 合併真實資料
                 let combinedData = [...realTenderData];
                 
-                // 如果有 API 資料，合併到真實資料中
                 if (apiRecords.length > 0) {{
-                    // 過濾符合條件的 API 資料
                     const includeKeywords = ["景觀", "植生", "綠牆", "綠美化", "園藝", "假設工程", "圍籬", "鷹架", "安全圍籬", "新建", "公廁"];
                     const excludeKeywords = ["主體建築", "下水道", "橋樑", "隧道", "捷運", "高鐵", "都市更新"];
                     
@@ -631,8 +615,22 @@ html_code = f"""
                         const unit = t.unit_name || "未知機關";
                         
                         if (budget > 0 && budget <= 36000000) {{
-                            if (includeKeywords.some(k => title.includes(k)) && 
-                                !excludeKeywords.some(k => title.includes(k))) {{
+                            let shouldInclude = false;
+                            for (const k of includeKeywords) {{
+                                if (title.includes(k)) {{
+                                    shouldInclude = true;
+                                    break;
+                                }}
+                            }}
+                            if (shouldInclude) {{
+                                for (const k of excludeKeywords) {{
+                                    if (title.includes(k)) {{
+                                        shouldInclude = false;
+                                        break;
+                                    }}
+                                }}
+                            }}
+                            if (shouldInclude) {{
                                 combinedData.push({{
                                     title: title,
                                     budget: budget,
@@ -646,7 +644,6 @@ html_code = f"""
                     }}
                 }}
                 
-                // 去重（根據標案名稱）
                 const uniqueTenders = [];
                 const seenTitles = new Set();
                 for (const t of combinedData) {{
@@ -659,13 +656,12 @@ html_code = f"""
                 allTenders = uniqueTenders;
                 filteredTenders = [...allTenders];
                 
-                // 更新狀態
                 const dataSource = apiRecords.length > 0 ? 'API + 真實資料' : '真實標案資料';
                 const nowTime = new Date().toLocaleTimeString('zh-TW');
                 timeLabel.innerHTML = `
                     <i class="bi bi-check-circle-fill text-success"></i> 
-                    <b>連線成功！</b> 資料來源：${dataSource} 
-                    <i class="bi bi-clock ms-2"></i> <b>更新時間：</b>${nowTime}
+                    <b>連線成功！</b> 資料來源：${{dataSource}} 
+                    <i class="bi bi-clock ms-2"></i> <b>更新時間：</b>${{nowTime}}
                 `;
                 
                 document.getElementById('dataStatus').innerHTML = `
@@ -674,15 +670,13 @@ html_code = f"""
                     </span>
                 `;
                 
-                // 渲染標案
                 renderTenders(filteredTenders);
                 updateStats(filteredTenders);
-                showToast(`✅ 成功載入 ${allTenders.length} 筆標案資料`, 'success');
+                showToast(`✅ 成功載入 ${{allTenders.length}} 筆標案資料`, 'success');
                 
             }} catch (error) {{
                 console.error('載入標案時發生錯誤:', error);
                 
-                // 使用真實資料作為備份
                 allTenders = realTenderData;
                 filteredTenders = [...allTenders];
                 
@@ -690,7 +684,7 @@ html_code = f"""
                 document.getElementById('update-time').innerHTML = `
                     <i class="bi bi-exclamation-triangle-fill text-warning"></i> 
                     <b>備用模式：</b>使用系統內建標案資料庫 
-                    <i class="bi bi-clock ms-2"></i> <b>更新時間：</b>${nowTime}
+                    <i class="bi bi-clock ms-2"></i> <b>更新時間：</b>${{nowTime}}
                 `;
                 
                 document.getElementById('dataStatus').innerHTML = `
@@ -705,7 +699,6 @@ html_code = f"""
             }}
         }}
         
-        // 頁面載入完成後執行
         window.onload = function() {{
             loadTenders();
         }};
