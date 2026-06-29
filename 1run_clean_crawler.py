@@ -12,8 +12,13 @@ MAX_BUDGET = 36000000  # 丙級營造上限 3600 萬
 INCLUDE_KEYWORDS = ["景觀", "植生", "綠牆", "綠美化", "園藝", "假設工程", "圍籬", "鷹架", "新建", "公廁"]
 EXCLUDE_KEYWORDS = ["主體建築", "下水道", "橋樑", "隧道", "捷運", "高鐵", "都市更新"]
 
-# 2. 強制寫死、絕對不可能變形的網址
-api_url = f"https://ronny.tw{today_str}"
+# 2. 【終極防竄改】將網址打碎成獨立單字，強迫 Python 執行時才拼接，徹底避開系統自動文字替換
+part1 = "https://"
+part2 = "pcc"
+part3 = "g0v"
+part4 = "ronny"
+part5 = "tw"
+api_url = f"{part1}{part2}.{part3}.{part4}.{part5}/api/listbydate?date={today_str}"
 
 def save_html(title, content, filename):
     html_code = f"""
@@ -42,8 +47,12 @@ def save_html(title, content, filename):
         f.write(html_code)
 
 try:
-    print(f"📡 【安全模式】正在請求官方正確 API 網址: {api_url}")
-    response = requests.get(api_url, timeout=20)
+    print(f"📡 【終極安全連線】正在請求正確官方 API 網址: {api_url}")
+    
+    # 模擬一般瀏覽器標頭，避免被當成惡意連線
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    response = requests.get(api_url, headers=headers, timeout=25)
+    
     if response.status_code != 200:
         print(f"❌ 無法讀取 API，狀態碼: {response.status_code}")
         exit()
