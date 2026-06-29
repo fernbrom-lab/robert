@@ -4,7 +4,6 @@ import json
 import gzip
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
-import base64
 
 today_date = datetime.now().strftime("%Y-%m-%d")
 print(f"🚀 開始執行【歷史自癒回溯版】標案與新聞過濾... 今日日期：{today_date}")
@@ -14,22 +13,15 @@ MAX_BUDGET = 36000000  # 丙級營造上限 3600 萬
 INCLUDE_KEYWORDS = ["景觀", "植生", "綠牆", "綠美化", "園藝", "假設工程", "圍籬", "鷹架", "新建", "公廁"]
 EXCLUDE_KEYWORDS = ["主體建築", "下水道", "橋樑", "隧道", "捷運", "高鐵", "都市更新"]
 
-# 2. 防篡改 Base64 網址解密 (解密後為：https://githubusercontent.com)
-b64_backup_base = "aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3Jvbm55Y29uL3BjYy1jcmF3bGVyL21haW4vZGF0YS8="
-# 若上面解密被特殊外掛影響，直接字串拆解作為最安全雙保險
-api_base_url = "https://" + "://githubusercontent.com"
+# 2. 【標準唯一官方網址】不拆解、不加密，確保格式 100% 絕對正確
+api_base_url = "https://githubusercontent.com"
 
 def fetch_construction_news():
     """抓取最新營造業即時新聞"""
     news_list = []
     try:
-        b64_news_base = "aHR0cHM6Ly9uZXdzLmdvb2dsZS5jb20vcnNzL3NlYXJjaD9xPQ=="
-        b64_news_tail = "Jmhscj16aC1UVyZnbD1UVyZjZWlkPVRXOnpoLUhhbnQ="
-        news_query = "(營造業 OR 景觀工程 OR 綠美化 OR 假設工程)"
-        url_base = base64.b64decode(b64_news_base).decode('utf-8')
-        url_tail = base64.b64decode(b64_news_tail).decode('utf-8')
-        rss_url = f"{url_base}{news_query}{url_tail}"
-        
+        # 直接使用標準編碼過的 Google RSS 網址，避免外掛修改
+        rss_url = "https://google.com"
         headers = {"User-Agent": "Mozilla/5.0"}
         res = requests.get(rss_url, headers=headers, timeout=15)
         if res.status_code == 200:
@@ -71,21 +63,21 @@ def save_html(title, content, filename):
         f.write(html_code)
 
 try:
-    # 先行抓取右側即時新聞 (不受標案檔案 404 影響，必定天天更新)
+    # 先行抓取右側即時新聞
     today_news = fetch_construction_news()
     
-    # 3. 【核心時光機回溯邏輯】如果今天沒檔案，自動往前找 1-3 天，直到抓到為止！
+    # 3. 核心時光機回溯邏輯
     response = None
     target_fetch_date_str = ""
     target_show_date_str = ""
     
-    for i in range(4): # 最多往前追溯 3 天 (今天、昨天、前天、大前天)
+    for i in range(5): # 最多往前追溯 4 天，確保一定能跨越週休二日抓到有上班的檔案
         check_date = datetime.now() - timedelta(days=i)
         target_fetch_date_str = check_date.strftime("%Y%m%d")
         target_show_date_str = check_date.strftime("%Y-%m-%d")
         
         backup_url = f"{api_base_url}{target_fetch_date_str}.json.gz"
-        print(f"📡 時光機嘗試連線 ──► 正在檢測 {target_show_date_str} 的標案大數據包...")
+        print(f"📡 正在發送正確連線 ──► 正在檢測 {target_show_date_str} 的標案大數據包...")
         
         headers = {"User-Agent": "Mozilla/5.0"}
         res = requests.get(backup_url, headers=headers, timeout=15)
@@ -95,7 +87,7 @@ try:
             print(f"🎯 成功對接！系統將自動讀取並清洗 【{target_show_date_str}】 的歷史標案大數據！")
             break
         else:
-            print(f"ℹ️ {target_show_date_str} 大數據包尚未就位或不存在 (HTTP {res.status_code})，準備繼續往前追溯...")
+            print(f"ℹ️ {target_show_date_str} 大數據包尚未就位 (HTTP {res.status_code})，自動繼續往前搜尋...")
 
     left_column = ""
     right_column = ""
@@ -118,18 +110,17 @@ try:
             """
         right_column += "</div>"
 
-    # 【終極防線】如果連前幾天的檔案都徹底消失 (機率極低)，啟動最安全的自癒提示頁面
     if response is None:
         print("⚠️ 警告：連續多日數據均未就位，啟動終極安全安全相容模式...")
         os.makedirs("dist", exist_ok=True)
         left_column += "<h3 class='text-primary mb-3'>📅 適合公司之標案日報</h3>"
         left_column += "<div class='alert alert-warning shadow-sm'>⚠️ <b>系統提示：</b>全台公共工程大數據包正在維護中。</div>"
-        left_column += f"<p class='mt-3'><a href='https://pcc.gov.tw' target='_blank' class='btn btn-warning w-100 py-2 fw-bold shadow-sm'>直接開啟：政府電子採購網首頁（手動直接找標案）</a></p>"
+        left_column += f"<p class='mt-3'><a href='https://pcc.gov.tw' target='_blank' class='btn btn-warning w-100 py-2 fw-bold shadow-sm'>直接開啟：政府電子採購網首頁</a></p>"
         full_content = f"<div class='row g-4'><div class='col-lg-7'>{left_column}</div><div class='col-lg-5'>{right_column}</div></div>"
         save_html(f"{today_date} 智慧情報站", full_content, "dist/index.html")
         exit(0)
 
-    # 4. 正常解壓並過濾歷史數據
+    # 4. 正常解壓並過濾數據
     decompressed_data = gzip.decompress(response.content)
     all_records = json.loads(decompressed_data.decode('utf-8'))
     tenders = all_records if isinstance(all_records, list) else all_records.get("records", [])
@@ -152,7 +143,7 @@ try:
                 "url": pcc_url
             })
 
-    # 組裝左側標案 (明確標註這筆標案數據是哪一天的，資訊最透明)
+    # 組裝左側標案
     current_time_str = datetime.now().strftime("%H:%M:%S")
     left_column += f"<h2>📅 推薦投標標案清單</h2>"
     left_column += f"<p class='text-muted'>📊 <b>數據來源：</b>{target_show_date_str} 發布之全台公告 ｜ ⏱️ <b>更新時間：</b>{current_time_str}</p><hr>"
