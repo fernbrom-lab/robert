@@ -1,26 +1,37 @@
-name: 查詢 Twinkle Hub 標案- name: 安裝依賴 
-run: |
-    pip install requests beautifulsoup4
-   
+name: 查詢政府標案
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # 每天上午 9 點
-  workflow_dispatch:
+    - cron: '0 9 * * *'  # 每天上午 9 點執行
+  workflow_dispatch:      # 允許手動觸發
+
 jobs:
-  query:
+  query-tenders:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: 檢出程式碼
+        uses: actions/checkout@v4
+      
+      - name: 設定 Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      - run: pip install requests
-      - name: 執行查詢
+      
+      - name: 安裝依賴
+        run: |
+          pip install requests
+          pip install beautifulsoup4
+      
+      - name: 執行標案查詢
         env:
-          TWINKLE_API_KEY: ${{ secrets.TWINKLE_API_KEY }}
+          TWINKLE_API_KEY: ${{ secrets.TWINKLE_API_KEY }}  # 保留以備不時之需
         run: python twinkle_tender.py
-      - uses: actions/upload-artifact@v4
+      
+      - name: 儲存查詢結果
+        uses: actions/upload-artifact@v4
         with:
           name: tender-results
-          path: tender_results.json
+          path: |
+            tender_results.json
+            tender_report.html
