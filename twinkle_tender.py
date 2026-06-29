@@ -2,123 +2,123 @@ import os
 import json
 import re
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from bs4 import BeautifulSoup
 
-def fetch_tenders_from_pcc(keyword: str = "景觀", max_budget: int = 36000000, limit: int = 30) -> List[Dict]:
+def fetch_tenders_from_pcc(keyword: str = "景觀", max_budget: int = 36000000, limit: int = 30, debug: bool = False) -> List[Dict]:
     """
     從政府電子採購網的公開頁面解析標案資料
-    
-    使用來源：政府電子採購網 - 招標公告
-    https://web.pcc.gov.tw/tps/QueryTender.do
     """
     tenders = []
     
     try:
-        print(f"📡 從政府電子採購網查詢標案...")
-        print(f"   關鍵字：{keyword}")
-        print(f"   預算上限：${max_budget:,}")
+        if debug:
+            print(f"   🔍 查詢關鍵字：{keyword}")
         
         # 政府電子採購網的查詢頁面
         url = "https://web.pcc.gov.tw/tps/QueryTender.do"
         
-        # 查詢參數
         params = {
             "method": "search",
             "searchType": "basic",
-            "tenderName": keyword,  # 標案名稱關鍵字
-            "budget": max_budget,   # 預算上限
+            "tenderName": keyword,
         }
         
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
-            "Content-Type": "application/x-www-form-urlencoded"
         }
         
         response = requests.get(url, params=params, headers=headers, timeout=15)
         
         if response.status_code == 200:
-            print(f"   ✅ 連線成功，正在解析網頁...")
+            if debug:
+                print(f"   ✅ 連線成功，正在解析網頁...")
             
-            # 使用 BeautifulSoup 解析 HTML
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # 尋找標案列表（根據實際網頁結構調整）
-            # 註：政府電子採購網的 HTML 結構較複雜，這裡提供一個範例
-            # 實際使用時可能需要根據網頁結構調整選擇器
+            # 嘗試多種可能的標案列表選擇器
+            selectors = [
+                'table tr',           # 通用表格
+                '.tender-list tr',    # 可能的 class
+                '#tenderTable tr',    # 可能的 ID
+                'tr.tender-item',     # 可能的 class
+            ]
             
-            # 尋找表格中的標案資料
-            rows = soup.select('table tr')
+            rows = []
+            for selector in selectors:
+                rows = soup.select(selector)
+                if len(rows) > 1:
+                    if debug:
+                        print(f"   ✅ 使用選擇器 '{selector}' 找到 {len(rows)} 列")
+                    break
+            
+            if len(rows) <= 1 and debug:
+                print(f"   ⚠️ 找不到標案列表，嘗試搜尋所有包含數字的表格列...")
+                # 備用：找所有包含數字的表格列
+                all_rows = soup.find_all('tr')
+                rows = [r for r in all_rows if re.search(r'\d+[,]?\d+', str(r))]
             
             for row in rows:
                 cells = row.find_all('td')
-                if len(cells) >= 4:
-                    title_cell = cells[0]
-                    budget_cell = cells[1] if len(cells) > 1 else None
-                    unit_cell = cells[2] if len(cells) > 2 else None
+                if len(cells) >= 3:
+                    title = cells[0].get_text(strip=True) if cells else ""
+                    budget_text = cells[1].get_text(strip=True) if len(cells) > 1 else "0"
+                    unit = cells[2].get_text(strip=True) if len(cells) > 2 else ""
                     
-                    title = title_cell.get_text(strip=True) if title_cell else ""
-                    budget_str = budget_cell.get_text(strip=True) if budget_cell else "0"
-                    unit = unit_cell.get_text(strip=True) if unit_cell else ""
+                    # 過濾掉明顯不是標案的列
+                    if not title or len(title) < 5:
+                        continue
+                    if '總計' in title or '合計' in title:
+                        continue
                     
-                    # 清理預算
-                    budget = parse_budget(budget_str)
+                    budget = parse_budget(budget_text)
                     
                     if title and budget > 0 and budget <= max_budget:
-                        # 關鍵字過濾
-                        if keyword.lower() in title.lower():
-                            tenders.append({
-                                'title': title,
-                                'budget': budget,
-                                'unit': unit or '未提供',
-                                'date': '',
-                                'source': '政府電子採購網'
-                            })
+                        tenders.append({
+                            'title': title,
+                            'budget': budget,
+                            'unit': unit or '未提供',
+                            'date': '',
+                            'source': '政府電子採購網'
+                        })
             
-            print(f"   ✅ 解析完成，找到 {len(tenders)} 筆符合條件的標案")
+            if debug:
+                print(f"   ✅ 解析完成，找到 {len(tenders)} 筆符合條件的標案")
             
         else:
-            print(f"   ❌ 請求失敗：{response.status_code}")
-            print(f"   💡 建議直接至 https://web.pcc.gov.tw 查詢")
+            if debug:
+                print(f"   ❌ 請求失敗：{response.status_code}")
             
     except Exception as e:
-        print(f"   ❌ 發生錯誤：{e}")
-        print(f"   💡 建議直接至 https://web.pcc.gov.tw 查詢")
+        if debug:
+            print(f"   ❌ 發生錯誤：{e}")
     
     return tenders[:limit]
 
-def fetch_tenders_from_alternative_source(keyword: str = "景觀", max_budget: int = 36000000, limit: int = 30) -> List[Dict]:
+def search_with_multiple_keywords(keywords: List[str], max_budget: int = 36000000, limit: int = 30) -> List[Dict]:
     """
-    備用方案：使用其他公開資料來源
+    使用多個關鍵字進行查詢，並合併結果
     """
-    tenders = []
+    all_tenders = []
+    seen_titles = set()
     
-    # 由於政府電子採購網可能需要更複雜的解析，
-    # 這裡提供一個備用方案：使用範例資料並註明來源
-    print("\n📋 使用備用資料來源...")
+    print(f"📡 嘗試 {len(keywords)} 個關鍵字查詢...")
     
-    # 這裡可以放入一些真實的標案範例（實際使用時應替換為真實資料）
-    sample_tenders = [
-        {"title": "市區道路景觀改善工程", "budget": 28000000, "unit": "市政府工務局"},
-        {"title": "公園綠美化工程", "budget": 15000000, "unit": "區公所"},
-        {"title": "學校圍籬新建工程", "budget": 8900000, "unit": "教育局"},
-    ]
+    for keyword in keywords:
+        print(f"\n   🔍 關鍵字：{keyword}")
+        tenders = fetch_tenders_from_pcc(keyword, max_budget, limit, debug=True)
+        
+        for t in tenders:
+            if t['title'] not in seen_titles:
+                seen_titles.add(t['title'])
+                all_tenders.append(t)
+        
+        print(f"   📊 找到 {len(tenders)} 筆，累計 {len(all_tenders)} 筆")
     
-    for t in sample_tenders:
-        if keyword in t['title'] or any(k in t['title'] for k in ["景觀", "綠美化", "圍籬", "新建"]):
-            tenders.append({
-                'title': t['title'],
-                'budget': t['budget'],
-                'unit': t['unit'],
-                'date': '',
-                'source': '範例資料（請以實際查詢為準）'
-            })
-    
-    print(f"   ✅ 從備用來源取得 {len(tenders)} 筆資料")
-    return tenders
+    return all_tenders[:limit]
 
 def parse_budget(value) -> int:
     """解析預算金額"""
@@ -126,14 +126,14 @@ def parse_budget(value) -> int:
         return int(value)
     
     if isinstance(value, str):
-        # 移除千分位、貨幣符號、逗號等
+        # 移除千分位、貨幣符號等
         clean = re.sub(r'[^\d]', '', value)
         return int(clean) if clean.isdigit() else 0
     
     return 0
 
 def save_results(tenders: List[Dict], filename: str = "tender_results.json"):
-    """儲存查詢結果到 JSON"""
+    """儲存查詢結果"""
     result = {
         "query_time": datetime.now().isoformat(),
         "total_count": len(tenders),
@@ -167,6 +167,7 @@ def generate_html_report(tenders: List[Dict], filename: str = "tender_report.htm
         .budget {{ color: #e74c3c; font-weight: bold; }}
         .source {{ color: #7f8c8d; font-size: 0.9em; }}
         .info {{ background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; }}
+        .warning {{ background: #fff3cd; padding: 10px; border-radius: 5px; margin: 10px 0; }}
     </style>
 </head>
 <body>
@@ -178,9 +179,22 @@ def generate_html_report(tenders: List[Dict], filename: str = "tender_report.htm
         </div>
         
         <div class="info">
-            💡 資料來源：政府電子採購網
+            💡 資料來源：政府電子採購網（https://web.pcc.gov.tw）
         </div>
-        
+"""
+    
+    if not tenders:
+        html += """
+        <div class="warning">
+            ⚠️ 目前沒有找到符合條件的標案<br>
+            建議：<br>
+            1. 直接至 <a href="https://web.pcc.gov.tw" target="_blank">政府電子採購網</a> 查詢更多標案<br>
+            2. 調整查詢關鍵字（如：工程、採購、新建）<br>
+            3. 放寬預算上限
+        </div>
+"""
+    else:
+        html += """
         <table>
             <thead>
                 <tr>
@@ -193,8 +207,6 @@ def generate_html_report(tenders: List[Dict], filename: str = "tender_report.htm
             </thead>
             <tbody>
 """
-    
-    if tenders:
         for i, t in enumerate(tenders, 1):
             html += f"""
                 <tr>
@@ -205,22 +217,17 @@ def generate_html_report(tenders: List[Dict], filename: str = "tender_report.htm
                     <td class="source">{t.get('source', 'N/A')}</td>
                 </tr>
 """
-    else:
         html += """
-                <tr>
-                    <td colspan="5" style="text-align: center; color: #7f8c8d;">暫無符合條件的標案</td>
-                </tr>
+            </tbody>
+        </table>
 """
     
     html += """
-            </tbody>
-        </table>
-        
         <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
-            <h4>📌 建議查詢方式</h4>
+            <h4>📌 使用說明</h4>
             <p>1. 直接至 <a href="https://web.pcc.gov.tw" target="_blank">政府電子採購網</a> 查詢更多標案</p>
             <p>2. 可使用「標案查詢系統」設定更多過濾條件</p>
-            <p>3. 定期更新以獲取最新標案資訊</p>
+            <p>3. 此為自動查詢結果，建議以官方網站最新資訊為準</p>
         </div>
     </div>
 </body>
@@ -238,21 +245,14 @@ def main():
     print("🏗️ 政府電子採購網 - 標案查詢工具")
     print("="*60)
     
-    # 嘗試從政府電子採購網查詢
-    tenders = fetch_tenders_from_pcc(
-        keyword="景觀",
-        max_budget=36000000,
-        limit=30
-    )
+    # 使用多個關鍵字查詢
+    keywords = ["景觀", "綠美化", "圍籬", "新建", "工程", "採購"]
     
-    # 如果沒有結果，嘗試備用方案
-    if not tenders:
-        print("\n⚠️ 從政府電子採購網查無結果，切換至備用方案...")
-        tenders = fetch_tenders_from_alternative_source(
-            keyword="景觀",
-            max_budget=36000000,
-            limit=30
-        )
+    tenders = search_with_multiple_keywords(
+        keywords=keywords,
+        max_budget=36000000,
+        limit=50
+    )
     
     # 儲存結果
     save_results(tenders)
@@ -272,6 +272,7 @@ def main():
         print("  1. 直接至政府電子採購網查詢：https://web.pcc.gov.tw")
         print("  2. 調整關鍵字（如：工程、採購、新建）")
         print("  3. 放寬預算上限")
+        print("  4. 此為自動化工具，建議以官方網站最新資訊為準")
 
 if __name__ == "__main__":
     main()
