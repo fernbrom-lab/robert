@@ -8,6 +8,8 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # 開啟推回 GitHub 的關鍵權限
 
     steps:
     - name: 1. 複製專案程式碼
@@ -27,8 +29,16 @@ jobs:
       run: |
         python main_crawler.py
 
-    - name: 5. 上傳網頁成果
-      uses: actions/upload-artifact@v4
-      with:
-        name: website-dist
-        path: dist/
+    - name: 5. 安全強制將 dist 資料夾與 HTML 推回專案 (解決 Render 找不到 dist 的問題)
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action Bot"
+        
+        # 強制檢查並追蹤產出的 dist 目錄
+        git add -F dist/ || git add dist/
+        
+        # 核心防錯命令：即便內容一模一樣，也透過 --allow-empty 強制 Commit，100% 擺脫 128 報錯黑洞
+        git commit --allow-empty -m "🤖 自動更新：網頁版標案日報 (最後更新: $(date +'%Y-%m-%d %H:%M:%S'))"
+        
+        # 推回 GitHub main 主分支
+        git push origin main
