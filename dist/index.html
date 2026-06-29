@@ -5,7 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2026-06-29 丙級營造廠標案自動偵測系統</title>
-    <link href="https://jsdelivr.net" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .navbar-brand { font-weight: 700; }
+        .list-group-item:hover { background-color: #f8f9fa; }
+        .table-responsive { max-height: 600px; overflow-y: auto; }
+        .bg-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    </style>
 </head>
 <body class="bg-light">
     <nav class="navbar navbar-dark bg-dark mb-4">
@@ -19,7 +25,7 @@
     
     <div class="container-fluid px-4">
         <div class="row g-4">
-            <!-- 左側欄：適合公司的推薦標案 (由瀏覽器現場動態撈取、過濾、噴出) -->
+            <!-- 左側欄：適合公司的推薦標案 -->
             <div class="col-lg-7">
                 <h3 class="text-primary mb-3">📅 今日推薦標案 (金額限額 3,600 萬內)</h3>
                 <p class="text-muted" id="update-time">📊 系統狀態：正在透過您本地安全網路連線至公標案資料庫...</p>
@@ -35,9 +41,57 @@
                 </div>
             </div>
             
-            <!-- 右側欄：雲端 Actions 每天定時打包更新的產業即時新聞 -->
+            <!-- 右側欄 -->
             <div class="col-lg-5">
-                <h3 class='text-success mb-3'>📰 營造業與景觀即時新聞</h3><p class='text-muted'>今日暫無重大法規或工程產業新聞變動。</p>
+                <h3 class='text-success mb-3'>📰 營造業與景觀即時新聞</h3><div class='list-group shadow-sm'>
+        <a href='https://udn.com/news/story/7238/3248335' target='_blank' class='list-group-item list-group-item-action py-3'>
+            <h6 class='mb-1 text-dark fw-bold'>美中貿易戰升溫 貿協：台商都有心理準備</h6>
+            <div class='d-flex w-100 justify-content-between mt-2'>
+                <small class='text-secondary'>來源：聯合新聞網</small>
+                <small class='text-primary'>點擊閱讀 →</small>
+            </div>
+        </a>
+        
+        <a href='https://udn.com/news/story/8864/3248157' target='_blank' class='list-group-item list-group-item-action py-3'>
+            <h6 class='mb-1 text-dark fw-bold'>買水餃連餐具材質都要問！ 網嘲：怕死就不要外食</h6>
+            <div class='d-flex w-100 justify-content-between mt-2'>
+                <small class='text-secondary'>來源：聯合新聞網</small>
+                <small class='text-primary'>點擊閱讀 →</small>
+            </div>
+        </a>
+        
+        <a href='https://udn.com/news/story/6656/3248349' target='_blank' class='list-group-item list-group-item-action py-3'>
+            <h6 class='mb-1 text-dark fw-bold'>蔡清祥接法務部的兩大功課：執行死刑?續推保防法?</h6>
+            <div class='d-flex w-100 justify-content-between mt-2'>
+                <small class='text-secondary'>來源：聯合新聞網</small>
+                <small class='text-primary'>點擊閱讀 →</small>
+            </div>
+        </a>
+        
+        <a href='https://udn.com/news/story/7266/3248267' target='_blank' class='list-group-item list-group-item-action py-3'>
+            <h6 class='mb-1 text-dark fw-bold'>出國旅遊後小便成茶色 小心急性肝炎</h6>
+            <div class='d-flex w-100 justify-content-between mt-2'>
+                <small class='text-secondary'>來源：聯合新聞網</small>
+                <small class='text-primary'>點擊閱讀 →</small>
+            </div>
+        </a>
+        
+        <a href='https://udn.com/news/story/12345/3248346' target='_blank' class='list-group-item list-group-item-action py-3'>
+            <h6 class='mb-1 text-dark fw-bold'>賴揆公布新人事</h6>
+            <div class='d-flex w-100 justify-content-between mt-2'>
+                <small class='text-secondary'>來源：聯合新聞網</small>
+                <small class='text-primary'>點擊閱讀 →</small>
+            </div>
+        </a>
+        
+        <a href='https://udn.com/news/story/12345/3248347' target='_blank' class='list-group-item list-group-item-action py-3'>
+            <h6 class='mb-1 text-dark fw-bold'>戰鬥內閣？　賴清德：本質上是解決問題不是解釋問題</h6>
+            <div class='d-flex w-100 justify-content-between mt-2'>
+                <small class='text-secondary'>來源：聯合新聞網</small>
+                <small class='text-primary'>點擊閱讀 →</small>
+            </div>
+        </a>
+        </div>
             </div>
         </div>
     </div>
@@ -58,8 +112,8 @@
             const includeKeywords = ["景觀", "植生", "綠牆", "綠美化", "園藝", "假設工程", "圍籬", "鷹架", "安全圍籬", "新建", "公廁"];
             const excludeKeywords = ["主體建築", "下水道", "橋樑", "隧道", "捷運", "高鐵", "都市更新"];
             
-            // 乾淨正確的 API 請求路徑
-            const apiUrl = `https://ronny.tw{todayStr}`;
+            // 修正：使用正確的 g0v API 端點
+            const apiUrl = `https://ronny.tw/api/tender?date=${todayStr}`;
             
             try {
                 const response = await fetch(apiUrl);
@@ -81,12 +135,12 @@
                     if (excludeKeywords.some(ex => title.includes(ex))) continue;
                     
                     if (includeKeywords.some(inc => title.includes(inc))) {
-                        const pccUrl = `https://pcc.gov.tw{jobNumber}`;
+                        const pccUrl = `https://web.pcc.gov.tw/tps/QueryTender.do?method=goDetail&tenderNo=${jobNumber}`;
                         filteredTenders.push({ title, budget, unit, url: pccUrl });
                     }
                 }
                 
-                // 渲染網頁表格成果
+                // 渲染網頁表格
                 const nowTime = new Date().toLocaleTimeString();
                 timeLabel.innerHTML = `✅ <b>連線成功！</b> 資料來源：${year}-${month}-${day} 全台公告 ｜ ⏱️ <b>更新時間：</b>${nowTime}`;
                 
@@ -128,7 +182,10 @@
                 timeLabel.innerHTML = `⚠️ <b>備用提示：</b>今日公標案資料庫正在整理中，請點擊下方直接進行人工速查。`;
                 container.innerHTML = `
                     <div class="alert alert-warning shadow-sm">今日全台大數據處理中。建議一鍵開啟官方當日總表。</div>
-                    <p class="mt-3"><a href="https://pcc.gov.tw" target="_blank" class="btn btn-warning w-100 py-2 fw-bold shadow-sm">直接開啟：政府電子採購網首頁（免帳號直接找標案）</a></p>
+                    <div class="mt-3">
+                        <a href="https://web.pcc.gov.tw" target="_blank" class="btn btn-warning w-100 py-2 fw-bold shadow-sm mb-2">直接開啟：政府電子採購網首頁</a>
+                        <a href="https://ronny.tw/api/tender?date=${todayStr}" target="_blank" class="btn btn-outline-secondary w-100 py-2">查看原始 API 資料</a>
+                    </div>
                 `;
             }
         }
@@ -136,5 +193,13 @@
         // 網頁開啟時自動載入
         window.onload = loadTenders;
     </script>
+    
+    <footer class="container-fluid px-4 mt-5 py-3 border-top bg-white">
+        <div class="row">
+            <div class="col text-center text-muted small">
+                © 2026-06-29 丙級營造廠標案偵測系統 | 資料來源：政府電子採購網
+            </div>
+        </div>
+    </footer>
 </body>
 </html>
